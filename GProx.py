@@ -13,12 +13,6 @@ MAX_CLIENTS = 8
 MAX_PACKET_SIZE = 65536
 
 
-class PacketType:
-        PEERS_SYNC = 0 # Server: broadcast, clients: IN
-        VOICE_DATA = 1 # Server: broadcast, clients: IN/OUT
-        POSITION_UPDATE = 2 # Server: broadcast, client: OUT
-
-
 if len(sys.argv) < 2:
         print("USAGE: GProx <PORT> [SERVER_IPv6_ADDRESS]>")
         print("(If you want to host the server, enter only PORT)")
@@ -50,21 +44,36 @@ Address = str
 
 # Server
 def server(port):
-        clients_data: dict[Address, dict[str, Any]] = {}
-        clients: dict[Address, socket.socket] = {}
+        clients: dict[Address, Any] = {}
 
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.settimeout(0)
+        sock.setblocking(False)
         sock.bind(("", port))
         while True:
                 sock.listen(MAX_CLIENTS)
                 try:
+                        # On connect:
                         conn, addr = sock.accept()
-                        clients[addr] = conn
-                        clients_data[addr] = {"x": 0, "y": 0, "z": 0}
+                        clients[addr]["conn"] = conn
+                        clients[addr]["pos"] = {"x": 0, "y": 0, "z": 0}
                 except: pass
-                for client in clients.values():
-                        client.send() # TODO: PEERS_SYNC
+
+                for client in clients:
+                        # Receive data:
+                        try:
+                                client["conn"].recv(MAX_PACKET_SIZE)
+                        except: pass
+
+                        # Sync/broadcast clients's data to all clients:
+                        sync_packet_data = bytes()
+                        for k, v in clients:
+                                sync_packet_data += bytes([
+                                        k,
+                                        v["pos"]["x"],
+                                        v["pos"]["y"],
+                                        v["pos"]["z"]
+                                ])
+                        client["conn"].sendall(sync_packet_data)
 
 if is_server:
         server_thread = threading.Thread(target=server, args=(port,))
@@ -73,11 +82,10 @@ if is_server:
 
 
 # Client
-peers_data: dict[Address, dict[str, Any]] = {}
-peers: dict [Address, socket.socket] = {}
+peers: dict [Address, Any] = {}
 
 sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-sock.settimeout(0)
+sock.setblocking(False)
 sock.connect((ip, port))
 while True:
         pass # TODO: Record, compress, send, receive, decompress, play
