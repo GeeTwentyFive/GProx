@@ -1,9 +1,12 @@
 import sys
 import ipaddress
+from typing import Any
 import socket
+import threading
 import pyaudio
 import pyogg
 import openal
+import atexit
 
 
 MAX_CLIENTS = 8
@@ -11,9 +14,9 @@ MAX_PACKET_SIZE = 65536
 
 
 class PacketType:
-        SET_NAME = 0
-        VOICE_DATA = 1
-        POSITION_DATA = 2
+        PEERS_SYNC = 0 # Server: broadcast, clients: IN
+        VOICE_DATA = 1 # Server: broadcast, clients: IN/OUT
+        POSITION_UPDATE = 2 # Server: broadcast, client: OUT
 
 
 if len(sys.argv) < 2:
@@ -29,8 +32,10 @@ except Exception as e:
         print(e)
         exit(1)
 
-ip = None
+ip = "::1"
+is_server = True
 if len(sys.argv) == 3:
+        is_server = False
         try:
                 ipaddress.IPv6Address(sys.argv[2])
         except Exception as e:
@@ -40,21 +45,40 @@ if len(sys.argv) == 3:
         ip = sys.argv[2]
 
 
-sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-sock.settimeout(0)
+Address = str
 
-if ip:
-        sock.connect((ip, port))
-        while True:
-                pass # TODO: Record, compress, send, receive, decompress, play
 
-else:
-        clients: dict[socket.socket, str] = []
+# Server
+def server(port):
+        clients_data: dict[Address, dict[str, Any]] = {}
+        clients: dict[Address, socket.socket] = {}
+
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.settimeout(0)
         sock.bind(("", port))
         while True:
                 sock.listen(MAX_CLIENTS)
-                clients.append(sock.accept()[0])
-                for i in range(1, len(clients)+1):
-                        pass # TODO
+                try:
+                        conn, addr = sock.accept()
+                        clients[addr] = conn
+                        clients_data[addr] = {"x": 0, "y": 0, "z": 0}
+                except: pass
+                for client in clients.values():
+                        client.send() # TODO: PEERS_SYNC
 
-sock.close()
+if is_server:
+        server_thread = threading.Thread(target=server, args=(port,))
+        server_thread.daemon = True
+        server_thread.start()
+
+
+# Client
+peers_data: dict[Address, dict[str, Any]] = {}
+peers: dict [Address, socket.socket] = {}
+
+sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+sock.settimeout(0)
+sock.connect((ip, port))
+while True:
+        pass # TODO: Record, compress, send, receive, decompress, play
+
