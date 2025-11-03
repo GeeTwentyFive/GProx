@@ -8,9 +8,6 @@
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
 
-#define MINIAUDIO_IMPLEMENTATION
-#include "libs/miniaudio.h"
-
 #include "libs/InputMonitor.h"
 #include "libs/AudioInputMonitor.h"
 
@@ -129,6 +126,7 @@ void Listen(ENetHost* local_client) {
                                                 if (peer_data == NULL) break;
 
                                                 // TODO: Play based on position in peer_data
+
                                         break;
 
                                         case PACKET_TYPE_PEER_DATA: // Sync remote player positions
@@ -223,7 +221,7 @@ int main(int argc, char* argv[]) {
                 return 1;
         }
 
-        if (AudioInputMonitor__Monitor(ma_format_f32, 1, 48000, AudioInputData_Callback) != 0) {
+        if (AudioInputMonitor__Monitor(ma_format_s16, 1, 48000, AudioInputData_Callback) != 0) {
                 std::cout << "ERROR: Failed to start monitoring audio input" << std::endl;
         }
 
