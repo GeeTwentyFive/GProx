@@ -43,6 +43,22 @@ std::vector<PeerData> remote_peer_data;
 int bRecord = 0;
 
 
+class StreamInstance : public SoLoud::AudioSourceInstance {
+public:
+        unsigned int getAudio(float* aBuffer, unsigned int aSamplesToRead, unsigned int) override {
+                // TODO
+        }
+
+        bool hasEnded() override { return false; }
+};
+class StreamSource : public SoLoud::AudioSource {
+public:
+        SoLoud::AudioSourceInstance* createInstance() override {
+                return new StreamInstance();
+        }
+};
+
+
 void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
         if (bRecord) {
                 unsigned char* packet_data = (unsigned char*)malloc(1 + sizeof(float)*frameCount);
