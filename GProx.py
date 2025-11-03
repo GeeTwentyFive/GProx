@@ -42,38 +42,30 @@ if len(sys.argv) == 3:
 Address = str
 
 
-# Server
+# Server (broadcast relay)
 def server(port):
-        clients: dict[Address, Any] = {}
+        clients: list[socket.socket] = []
+
+        def client_broadcast_handler(conn: socket.socket):
+                while True:
+                        data = conn.recvfrom(MAX_PACKET_SIZE)
+                        if not data:
+                                clients.remove(conn)
+                                conn.close()
+                                break
+                        for client in clients:
+                                if client != conn:
+                                        client.send(data)
 
         sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        sock.setblocking(False)
         sock.bind(("", port))
+        sock.listen(MAX_CLIENTS)
         while True:
-                sock.listen(MAX_CLIENTS)
-                try:
-                        # On connect:
-                        conn, addr = sock.accept()
-                        clients[addr]["conn"] = conn
-                        clients[addr]["pos"] = {"x": 0, "y": 0, "z": 0}
-                except: pass
-
-                for client in clients:
-                        # Receive data:
-                        try:
-                                client["conn"].recv(MAX_PACKET_SIZE)
-                        except: pass
-
-                        # Sync/broadcast clients's data to all clients:
-                        sync_packet_data = bytes()
-                        for k, v in clients:
-                                sync_packet_data += bytes([
-                                        k,
-                                        v["pos"]["x"],
-                                        v["pos"]["y"],
-                                        v["pos"]["z"]
-                                ])
-                        client["conn"].sendall(sync_packet_data)
+                conn, _ = sock.accept()
+                clients.append(conn)
+                client_broadcast_handler_thread = threading.Thread(target=client_broadcast_handler, args=(conn,))
+                client_broadcast_handler_thread.daemon = True
+                client_broadcast_handler_thread.start()
 
 if is_server:
         server_thread = threading.Thread(target=server, args=(port,))
@@ -82,11 +74,11 @@ if is_server:
 
 
 # Client
-peers: dict [Address, Any] = {}
+def listen(conn: socket.socket):
+        print(conn.recvfrom(MAX_PACKET_SIZE).decode()) # TEMP; TEST
 
 sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-sock.setblocking(False)
 sock.connect((ip, port))
 while True:
-        pass # TODO: Record, compress, send, receive, decompress, play
+        pass # TODO
 
