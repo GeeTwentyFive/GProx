@@ -133,24 +133,26 @@ void Listen(ENetHost* local_client) {
                                         break;
 
                                         case PACKET_TYPE_PEER_DATA: // Sync remote player positions
+                                                bool existing_peer_found = false;
                                                 for (PeerData& p : remote_peer_data) {
                                                         if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                                existing_peer_found = true;
                                                                 memcpy(
                                                                         &p,
                                                                         &event.packet->data[1],
                                                                         sizeof(PeerData)
-                                                                );
-                                                                break;
-                                                        }
+                                                                );                                                        }
                                                 }
 
-                                                PeerData p;
-                                                memcpy(
-                                                        &p,
-                                                        &event.packet->data[1],
-                                                        sizeof(PeerData)
-                                                );
-                                                remote_peer_data.push_back(p);
+                                                if (!existing_peer_found) {
+                                                        PeerData p;
+                                                        memcpy(
+                                                                &p,
+                                                                &event.packet->data[1],
+                                                                sizeof(PeerData)
+                                                        );
+                                                        remote_peer_data.push_back(p);
+                                                }
                                         break;
                                 }
 
