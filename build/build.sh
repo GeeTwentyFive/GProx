@@ -1,0 +1,1 @@
+clang++ -O3 ../main.cpp -lpthread -lm -o GProx.x86_64
