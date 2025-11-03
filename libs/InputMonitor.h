@@ -131,7 +131,7 @@ int InputMonitor__Bind(InputMonitor__target_type targetType, unsigned short targ
 
         if (_InputMonitor_setBindings+1 >= INPUTMONITOR__MAX_BINDINGS) {
                 printf("ERROR: Reached InputMonitor's binding limit. To increase: Increase value of INPUTMONITOR__MAX_BINDINGS (current: %u).", INPUTMONITOR__MAX_BINDINGS);
-                return 0;
+                return 1;
         }
 
         _InputMonitor_bindings[_InputMonitor_setBindings].targetType = targetType;
@@ -141,7 +141,7 @@ int InputMonitor__Bind(InputMonitor__target_type targetType, unsigned short targ
 
 
 
-        return 1;
+        return 0;
 
 }
 

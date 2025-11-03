@@ -35,11 +35,16 @@ typedef enum {
 } PacketType;
 
 
-PeerData local_peer_data = {0};
 std::vector<PeerData> remote_peer_data;
 
+int bRecord = 0;
 
-void IPC_Server(enet_uint16 port) {
+
+void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
+        // TODO: Send as audio data packet
+}
+
+void IPC_Server(enet_uint16 port, ENetPeer* gprox_server) {
         ENetAddress address;
         address.host = ENET_HOST_ANY;
         address.port = port;
@@ -61,15 +66,22 @@ void IPC_Server(enet_uint16 port) {
         while (true) {
                 while (enet_host_service(server, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                if (event.packet->dataLength != sizeof(PeerData)) {
+                                if (event.packet->dataLength != sizeof(PeerData)+1) {
                                         std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << sizeof(PeerData) << std::endl;
                                 }
+                                enet_packet_resize(event.packet, sizeof(PeerData)+1);
                                 memcpy(
-                                        &local_peer_data,
+                                        &event.packet->data[1],
                                         event.packet->data,
-                                        event.packet->dataLength
+                                        sizeof(PeerData)
                                 );
-                                enet_packet_destroy(event.packet);
+                                event.packet->data[0] = PACKET_TYPE_PEER_DATA;
+
+                                enet_peer_send(
+                                        gprox_server,
+                                        0,
+                                        event.packet
+                                );
                         }
                 }
         }
@@ -176,7 +188,18 @@ int main(int argc, char* argv[]) {
         // Start client listener after connecting
         std::thread(Listen, client).detach();
 
-        // TODO: Record -> compress -> send
+
+        // Bind V to push-to-talk
+        if (InputMonitor__Bind(INPUTMONITOR__TARGET_KEYBOARD, VC_V, &bRecord) != 0) {
+                std::cout << "ERROR: Failed to bind push-to-talk key" << std::endl;
+                return 1;
+        }
+
+        if (AudioInputMonitor__Monitor(ma_format_unknown, 1, 48000, AudioInputData_Callback) != 0) {
+                std::cout << "ERROR: Failed to start monitoring audio input" << std::endl;
+        }
+
+        while (true) std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         return 0;
 }
