@@ -24,6 +24,9 @@ typedef struct {
                 float y;
                 float z;
         } pos;
+
+// Managed by server:
+        struct in6_addr ip;
 } PeerData;
 
 typedef enum {
@@ -58,6 +61,9 @@ void IPC_Server(enet_uint16 port) {
         while (true) {
                 while (enet_host_service(server, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                                if (event.packet->dataLength != sizeof(PeerData)) {
+                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << sizeof(PeerData) << std::endl;
+                                }
                                 memcpy(
                                         &local_peer_data,
                                         event.packet->data,
@@ -75,7 +81,42 @@ void Listen(ENetHost* local_client) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         switch (event.type) {
                                 case ENET_EVENT_TYPE_RECEIVE:
-                                        // TODO: Receive and play
+                                        switch (event.packet->data[0]) {
+                                                case PACKET_TYPE_AUDIO_DATA:
+                                                        PeerData* peer_data = NULL;
+                                                        for (PeerData& p : remote_peer_data) {
+                                                                if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                                        peer_data = &p;
+                                                                }
+                                                        }
+                                                        if (peer_data == NULL) break;
+
+                                                        // TODO: Play based on position in peer_data
+                                                break;
+
+                                                case PACKET_TYPE_PEER_DATA: // Sync remote player positions
+                                                        for (PeerData& p : remote_peer_data) {
+                                                                if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                                        memcpy(
+                                                                                &p,
+                                                                                &event.packet->data[1],
+                                                                                sizeof(PeerData)
+                                                                        );
+                                                                        break;
+                                                                }
+                                                        }
+
+                                                        PeerData p;
+                                                        memcpy(
+                                                                &p,
+                                                                &event.packet->data[1],
+                                                                sizeof(PeerData)
+                                                        );
+                                                        remote_peer_data.push_back(p);
+                                                break;
+                                        }
+
+                                        enet_packet_destroy(event.packet);
                                 break;
 
                                 default: break;
@@ -138,21 +179,7 @@ int main(int argc, char* argv[]) {
         // Start client listener after connecting
         std::thread(Listen, client).detach();
 
-        // TODO: Record & send
-        // // TEMP; TEST
-        // std::string test;
-        // while (test != "STOP") {
-        //         std::getline(std::cin, test);
-        //         enet_peer_send(
-        //                 server,
-        //                 0,
-        //                 enet_packet_create(
-        //                         test.c_str(),
-        //                         test.length()+1,
-        //                         ENET_PACKET_FLAG_UNSEQUENCED
-        //                 )
-        //         );
-        // }
+        // TODO: Record -> compress -> send
 
         return 0;
 }

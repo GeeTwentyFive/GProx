@@ -8,6 +8,23 @@
 #define MAX_CLIENTS 4
 
 
+typedef struct {
+        struct {
+                float x;
+                float y;
+                float z;
+        } pos;
+
+// Managed by server:
+        struct in6_addr ip;
+} PeerData;
+
+typedef enum {
+        PACKET_TYPE_AUDIO_DATA = 0,
+        PACKET_TYPE_PEER_DATA = 1
+} PacketType;
+
+
 int main(int argc, char* argv[]) {
         if (argc < 2) {
                 std::cout << "USAGE: GProx_Server <PORT>" << std::endl;
@@ -63,6 +80,26 @@ int main(int argc, char* argv[]) {
                                 break;
 
                                 case ENET_EVENT_TYPE_RECEIVE:
+                                        switch (event.packet->data[0]) {
+                                                        // Put ip at end of audio data
+                                                        case PACKET_TYPE_AUDIO_DATA:
+                                                                size_t initial_packet_size = event.packet->dataLength;
+                                                                enet_packet_resize(event.packet, initial_packet_size + sizeof(struct in6_addr));
+                                                                memcpy(
+                                                                        &event.packet->data[initial_packet_size],
+                                                                        &event.peer->address.host,
+                                                                        sizeof(struct in6_addr)
+                                                                );
+                                                        break;
+
+                                                        // Copy ip into PeerData
+                                                        case PACKET_TYPE_PEER_DATA:
+                                                                PeerData* d = (PeerData*)event.packet->data;
+                                                                memcpy(&d->ip, &event.peer->address.host, sizeof(struct in6_addr));
+                                                        break;
+                                                }
+
+                                        // Broadcast to all but sender
                                         for (
                                                 ENetPeer* currentPeer = server->peers;
                                                 currentPeer < &server->peers[server->peerCount];
@@ -70,14 +107,6 @@ int main(int argc, char* argv[]) {
                                         ) {
                                                 if (currentPeer->state != ENET_PEER_STATE_CONNECTED) continue;
                                                 if (currentPeer == event.peer) continue;
-
-                                                size_t initial_packet_size = event.packet->dataLength;
-                                                enet_packet_resize(event.packet, initial_packet_size + sizeof(struct in6_addr));
-                                                memcpy(
-                                                        &event.packet->data[initial_packet_size],
-                                                        &event.peer->address.host,
-                                                        sizeof(struct in6_addr)
-                                                );
 
                                                 enet_peer_send(currentPeer, 0, event.packet);
                                         }
