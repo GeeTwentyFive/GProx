@@ -71,6 +71,14 @@ int main(int argc, char* argv[]) {
                                                 if (currentPeer->state != ENET_PEER_STATE_CONNECTED) continue;
                                                 if (currentPeer == event.peer) continue;
 
+                                                size_t initial_packet_size = event.packet->dataLength;
+                                                enet_packet_resize(event.packet, initial_packet_size + sizeof(struct in6_addr));
+                                                memcpy(
+                                                        &event.packet->data[initial_packet_size],
+                                                        &event.peer->address.host,
+                                                        sizeof(struct in6_addr)
+                                                );
+
                                                 enet_peer_send(currentPeer, 0, event.packet);
                                         }
                                 break;

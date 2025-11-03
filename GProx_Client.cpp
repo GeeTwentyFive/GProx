@@ -1,3 +1,4 @@
+#include <vector>
 #include <iostream>
 #include <stdlib.h>
 #include <string>
@@ -18,7 +19,6 @@
 
 
 typedef struct {
-        struct in6_addr ip;
         struct {
                 float x;
                 float y;
@@ -32,13 +32,50 @@ typedef enum {
 } PacketType;
 
 
+PeerData local_peer_data = {0};
+std::vector<PeerData> remote_peer_data;
+
+
+void IPC_Server(enet_uint16 port) {
+        ENetAddress address;
+        address.host = ENET_HOST_ANY;
+        address.port = port;
+        ENetHost* server = enet_host_create(
+                &address,
+                1,
+                1,
+                0,
+                0
+        );
+        if (server == NULL) {
+                std::cout << "ERROR: Failed to start IPC server" << std::endl;
+                exit(1);
+        }
+
+        std::cout << "Started IPC server on port " << port << std::endl;
+
+        ENetEvent event;
+        while (true) {
+                while (enet_host_service(server, &event, 1) > 0) {
+                        if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                                memcpy(
+                                        &local_peer_data,
+                                        event.packet->data,
+                                        event.packet->dataLength
+                                );
+                                enet_packet_destroy(event.packet);
+                        }
+                }
+        }
+}
+
 void Listen(ENetHost* local_client) {
         ENetEvent event;
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         switch (event.type) {
                                 case ENET_EVENT_TYPE_RECEIVE:
-                                        std::cout << "> " << event.packet->data << std::endl; // TEMP; TEST
+                                        // TODO: Receive and play
                                 break;
 
                                 default: break;
@@ -65,6 +102,10 @@ int main(int argc, char* argv[]) {
                 return 1;
         }
         atexit(enet_deinitialize);
+
+
+        // Start IPC (Inter-Process Communication) Server
+        std::thread(IPC_Server, port+1).detach();
 
 
         ENetHost* client = enet_host_create(NULL, 1, 1, 0, 0);
@@ -97,20 +138,21 @@ int main(int argc, char* argv[]) {
         // Start client listener after connecting
         std::thread(Listen, client).detach();
 
-        // TEMP; TEST
-        std::string test;
-        while (test != "STOP") {
-                std::getline(std::cin, test);
-                enet_peer_send(
-                        server,
-                        0,
-                        enet_packet_create(
-                                test.c_str(),
-                                test.length()+1,
-                                ENET_PACKET_FLAG_UNSEQUENCED
-                        )
-                );
-        }
+        // TODO: Record & send
+        // // TEMP; TEST
+        // std::string test;
+        // while (test != "STOP") {
+        //         std::getline(std::cin, test);
+        //         enet_peer_send(
+        //                 server,
+        //                 0,
+        //                 enet_packet_create(
+        //                         test.c_str(),
+        //                         test.length()+1,
+        //                         ENET_PACKET_FLAG_UNSEQUENCED
+        //                 )
+        //         );
+        // }
 
         return 0;
 }
