@@ -79,47 +79,43 @@ void Listen(ENetHost* local_client) {
         ENetEvent event;
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
-                        switch (event.type) {
-                                case ENET_EVENT_TYPE_RECEIVE:
-                                        switch (event.packet->data[0]) {
-                                                case PACKET_TYPE_AUDIO_DATA:
-                                                        PeerData* peer_data = NULL;
-                                                        for (PeerData& p : remote_peer_data) {
-                                                                if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
-                                                                        peer_data = &p;
-                                                                }
+                        if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                                switch (event.packet->data[0]) {
+                                        case PACKET_TYPE_AUDIO_DATA:
+                                                PeerData* peer_data = NULL;
+                                                for (PeerData& p : remote_peer_data) {
+                                                        if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                                peer_data = &p;
                                                         }
-                                                        if (peer_data == NULL) break;
+                                                }
+                                                if (peer_data == NULL) break;
 
-                                                        // TODO: Play based on position in peer_data
-                                                break;
+                                                // TODO: Play based on position in peer_data
+                                        break;
 
-                                                case PACKET_TYPE_PEER_DATA: // Sync remote player positions
-                                                        for (PeerData& p : remote_peer_data) {
-                                                                if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
-                                                                        memcpy(
-                                                                                &p,
-                                                                                &event.packet->data[1],
-                                                                                sizeof(PeerData)
-                                                                        );
-                                                                        break;
-                                                                }
+                                        case PACKET_TYPE_PEER_DATA: // Sync remote player positions
+                                                for (PeerData& p : remote_peer_data) {
+                                                        if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                                memcpy(
+                                                                        &p,
+                                                                        &event.packet->data[1],
+                                                                        sizeof(PeerData)
+                                                                );
+                                                                break;
                                                         }
+                                                }
 
-                                                        PeerData p;
-                                                        memcpy(
-                                                                &p,
-                                                                &event.packet->data[1],
-                                                                sizeof(PeerData)
-                                                        );
-                                                        remote_peer_data.push_back(p);
-                                                break;
-                                        }
+                                                PeerData p;
+                                                memcpy(
+                                                        &p,
+                                                        &event.packet->data[1],
+                                                        sizeof(PeerData)
+                                                );
+                                                remote_peer_data.push_back(p);
+                                        break;
+                                }
 
-                                        enet_packet_destroy(event.packet);
-                                break;
-
-                                default: break;
+                                enet_packet_destroy(event.packet);
                         }
                 }
         }
