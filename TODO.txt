@@ -1,0 +1,8 @@
+- 2 channels:
+        0 = UID from server
+        1 = AUDIO DATA
+        2 = PeerData
+
+- ^ send UID in Server() on ENET_EVENT_TYPE_CONNECT
+
+- ^ define PeerData (UID, x, y, z, velx, vely, velz)

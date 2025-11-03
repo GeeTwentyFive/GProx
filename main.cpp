@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
                         enet_packet_create(
                                 test.c_str(),
                                 test.length()+1,
-                                0
+                                ENET_PACKET_FLAG_UNSEQUENCED
                         )
                 );
         }
