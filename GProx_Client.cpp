@@ -14,51 +14,42 @@
 #include "libs/soloud/include/soloud_wavstream.h"
 
 
-#define TIMEOUT_MS 5000
-#define MAX_SERVER_CLIENTS 4
+#define CONNECT_TIMEOUT_MS 5000
 
 
-void Server(enet_uint16 port) {
-        std::cout << "Starting server on port " << port << std::endl;
+typedef struct {
+        struct in6_addr ip;
+        struct {
+                float x;
+                float y;
+                float z;
+        } pos;
+} PeerData;
 
-        ENetAddress address = {ENET_HOST_ANY, port};
-        ENetHost* server = enet_host_create(
-                &address,
-                MAX_SERVER_CLIENTS,
-                1,
-                0,
-                0
-        );
-        if (server == NULL) {
-                std::cout << "ERROR: Failed to create ENet server" << std::endl;
-                exit(1);
-        }
+typedef enum {
+        PACKET_TYPE_AUDIO_DATA = 0,
+        PACKET_TYPE_PEER_DATA = 1
+} PacketType;
 
-        ENetEvent event;
-        while (true) {
-                while (enet_host_service(server, &event, 1) > 0) {
-                        if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                enet_host_broadcast(server, 0, event.packet);
-                        }
-                }
-        }
-}
 
 void Listen(ENetHost* local_client) {
         ENetEvent event;
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
-                        if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                std::cout << "> " << event.packet->data << std::endl; // TEMP; TEST
+                        switch (event.type) {
+                                case ENET_EVENT_TYPE_RECEIVE:
+                                        std::cout << "> " << event.packet->data << std::endl; // TEMP; TEST
+                                break;
+
+                                default: break;
                         }
                 }
         }
 }
 
 int main(int argc, char* argv[]) {
-        if (argc < 2) {
-                std::cout << "USAGE: GProx <PORT> [SERVER_IP_ADDRESS]>" << std::endl;
-                std::cout << "(If you want to host the server, enter only PORT)" << std::endl;
+        if (argc < 3) {
+                std::cout << "USAGE: GProx_Client <PORT> <SERVER_IPv6_ADDRESS>" << std::endl;
                 return 1;
         }
 
@@ -68,7 +59,6 @@ int main(int argc, char* argv[]) {
                 return 1;
         }
 
-        std::string ip = (argc == 3) ? argv[2] : "localhost";
 
         if (enet_initialize() != 0) {
                 std::cout << "ERROR: Failed to initialize ENet" << std::endl;
@@ -77,20 +67,14 @@ int main(int argc, char* argv[]) {
         atexit(enet_deinitialize);
 
 
-        // Start server if no IP (or "localhost") provided in CLI args
-        if (ip == "localhost") std::thread(Server, (enet_uint16)port).detach();
-
-
-        // Client
-
-        ENetHost* client = enet_host_create( NULL, 1, 1, 0, 0);
+        ENetHost* client = enet_host_create(NULL, 1, 1, 0, 0);
         if (client == NULL) {
                 std::cout << "ERROR: Failed to create ENet client" << std::endl;
                 exit(1);
         }
 
         ENetAddress address;
-        enet_address_set_host(&address, ip.c_str());
+        enet_address_set_host_new(&address, argv[2]);
         address.port = port;
         ENetPeer* server = enet_host_connect(client, &address, 1, 0);
         if (server == NULL) {
@@ -100,7 +84,7 @@ int main(int argc, char* argv[]) {
 
         ENetEvent event;
         if (
-                enet_host_service(client, &event, TIMEOUT_MS) > 0 &&
+                enet_host_service(client, &event, CONNECT_TIMEOUT_MS) > 0 &&
                 event.type == ENET_EVENT_TYPE_CONNECT
         ) {
                 std::cout << "Connected" << std::endl;
