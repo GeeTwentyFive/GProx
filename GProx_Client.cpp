@@ -8,12 +8,11 @@
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
 
+#define MINIAUDIO_IMPLEMENTATION
+#include "libs/miniaudio.h"
+
 #include "libs/InputMonitor.h"
 #include "libs/AudioInputMonitor.h"
-
-#define WITH_MINIAUDIO
-#include "libs/soloud/include/soloud.h"
-#include "libs/soloud/include/soloud_wavstream.h"
 
 
 #define CONNECT_TIMEOUT_MS 5000
@@ -41,22 +40,6 @@ std::mutex gprox_server_mutex;
 std::vector<PeerData> remote_peer_data;
 
 int bRecord = 0;
-
-
-class StreamInstance : public SoLoud::AudioSourceInstance {
-public:
-        unsigned int getAudio(float* aBuffer, unsigned int aSamplesToRead, unsigned int) override {
-                // TODO
-        }
-
-        bool hasEnded() override { return false; }
-};
-class StreamSource : public SoLoud::AudioSource {
-public:
-        SoLoud::AudioSourceInstance* createInstance() override {
-                return new StreamInstance();
-        }
-};
 
 
 void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
