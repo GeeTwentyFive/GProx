@@ -47,7 +47,7 @@ void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
         if (bRecord) {
                 unsigned char* packet_data = (unsigned char*)malloc(1 + sizeof(float)*frameCount);
                 packet_data[0] = PACKET_TYPE_AUDIO_DATA;
-                memcpy(&packet_data[1], pData, sizeof(float));
+                memcpy(&packet_data[1], pData, sizeof(float)*frameCount);
                 gprox_server_mutex.lock();
                 enet_peer_send(
                         gprox_server,
@@ -123,7 +123,7 @@ void Listen(ENetHost* local_client) {
                                         case PACKET_TYPE_AUDIO_DATA:
                                                 peer_data = NULL;
                                                 for (PeerData& p : remote_peer_data) {
-                                                        if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
+                                                        if (in6_equal(p.ip, *(struct in6_addr*)&event.packet->data[event.packet->dataLength - sizeof(struct in6_addr)])) {
                                                                 peer_data = &p;
                                                         }
                                                 }
@@ -141,7 +141,9 @@ void Listen(ENetHost* local_client) {
                                                                         &p,
                                                                         &event.packet->data[1],
                                                                         sizeof(PeerData)
-                                                                );                                                        }
+                                                                );
+                                                                break;
+                                                        }
                                                 }
 
                                                 if (!existing_peer_found) {
