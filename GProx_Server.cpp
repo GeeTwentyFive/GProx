@@ -66,6 +66,7 @@ int main(int argc, char* argv[]) {
 
         ENetEvent event;
         char addr_str[64] = {0};
+        size_t initial_packet_size = 0;
         while (true) {
                 while (enet_host_service(server, &event, 1) > 0) {
                         switch (event.type) {
@@ -83,7 +84,7 @@ int main(int argc, char* argv[]) {
                                         switch (event.packet->data[0]) {
                                                         // Put ip at end of audio data
                                                         case PACKET_TYPE_AUDIO_DATA:
-                                                                size_t initial_packet_size = event.packet->dataLength;
+                                                                initial_packet_size = event.packet->dataLength;
                                                                 enet_packet_resize(event.packet, initial_packet_size + sizeof(struct in6_addr));
                                                                 memcpy(
                                                                         &event.packet->data[initial_packet_size],

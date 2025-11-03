@@ -7,8 +7,8 @@
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
 
-#define MINIAUDIO_IMPLEMENTATION
-#include "libs/miniaudio.h"
+#include "libs/InputMonitor.h"
+#include "libs/AudioInputMonitor.h"
 
 #define WITH_MINIAUDIO
 #include "libs/soloud/include/soloud.h"
@@ -77,12 +77,13 @@ void IPC_Server(enet_uint16 port) {
 
 void Listen(ENetHost* local_client) {
         ENetEvent event;
+        PeerData* peer_data = NULL;
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
                                 switch (event.packet->data[0]) {
                                         case PACKET_TYPE_AUDIO_DATA:
-                                                PeerData* peer_data = NULL;
+                                                peer_data = NULL;
                                                 for (PeerData& p : remote_peer_data) {
                                                         if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
                                                                 peer_data = &p;
