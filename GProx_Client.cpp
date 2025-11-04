@@ -29,6 +29,20 @@ typedef struct {
         struct in6_addr ip;
 } PeerData;
 
+typedef struct {
+        struct {
+                float x;
+                float y;
+                float z;
+        } pos;
+
+        struct {
+                float pitch;
+                float yaw;
+                float roll;
+        } rot;
+} LocalPeerData;
+
 class AudioOutputStream : sf::SoundStream {
 public:
         AudioOutputStream() {
@@ -90,16 +104,16 @@ int bRecord = 0;
 
 void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
         if (bRecord) {
-                unsigned char* packet_data = (unsigned char*)malloc(1 + sizeof(float)*frameCount);
+                unsigned char* packet_data = (unsigned char*)malloc(1 + sizeof(std::int16_t)*frameCount);
                 packet_data[0] = PACKET_TYPE_AUDIO_DATA;
-                memcpy(&packet_data[1], pData, sizeof(float)*frameCount);
+                memcpy(&packet_data[1], pData, sizeof(std::int16_t)*frameCount);
                 gprox_server_mutex.lock();
                 enet_peer_send(
                         gprox_server,
                         0,
                         enet_packet_create(
                                 packet_data,
-                                1 + sizeof(float)*frameCount,
+                                1 + sizeof(std::int16_t)*frameCount,
                                 ENET_PACKET_FLAG_UNSEQUENCED
                         )
                 );
@@ -130,15 +144,20 @@ void IPC_Server(enet_uint16 port) {
         while (true) {
                 while (enet_host_service(server, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                if (event.packet->dataLength != (sizeof(PeerData) - sizeof(struct in6_addr))) {
-                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << (sizeof(PeerData) - sizeof(struct in6_addr)) << std::endl;
+                                if (event.packet->dataLength != sizeof(LocalPeerData)) {
+                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << sizeof(LocalPeerData) << std::endl;
                                 }
 
-                                PeerData* local_peer_data = (PeerData*)event.packet->data;
+                                LocalPeerData* local_peer_data = (LocalPeerData*)event.packet->data;
                                 sf::Listener::setPosition(sf::Vector3f{
                                         local_peer_data->pos.x,
                                         local_peer_data->pos.y,
                                         local_peer_data->pos.z
+                                });
+                                sf::Listener::setDirection(sf::Vector3f{
+                                        local_peer_data->rot.pitch,
+                                        local_peer_data->rot.yaw,
+                                        local_peer_data->rot.roll
                                 });
 
                                 unsigned char* local_peer_data_packet_data = (unsigned char*)malloc(1 + sizeof(PeerData));
