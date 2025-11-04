@@ -42,14 +42,13 @@ public:
         }
 
         void PushSamples(const std::vector<std::int16_t>& samples) {
-                samples_mutex.lock();
+                std::lock_guard<std::mutex> lock(samples_mutex);
                 samples_queue.push_back(samples);
-                samples_mutex.unlock();
         }
 
 private:
         bool onGetData(Chunk& data) override {
-                samples_mutex.lock();
+                std::lock_guard<std::mutex> lock(samples_mutex);
 
                 if (samples_queue.empty()) return false;
 
@@ -58,8 +57,6 @@ private:
 
                 data.samples = current_samples.data();
                 data.sampleCount = current_samples.size();
-
-                samples_mutex.unlock();
                 return true;
         }
 
@@ -175,7 +172,7 @@ void Listen(ENetHost* local_client) {
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                remote_peer_data_mutex.lock();
+                                std::lock_guard<std::mutex> lock(remote_peer_data_mutex);
                                 switch (event.packet->data[0]) {
                                         case PACKET_TYPE_AUDIO_DATA:
                                                 peer_data = NULL;
@@ -236,7 +233,6 @@ void Listen(ENetHost* local_client) {
                                                 }
                                         break;
                                 }
-                                remote_peer_data_mutex.unlock();
 
                                 enet_packet_destroy(event.packet);
                         }
