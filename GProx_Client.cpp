@@ -216,7 +216,12 @@ void Listen(ENetHost* local_client) {
                                                         peer_data->pos.z
                                                 });
 
-                                                // TODO: peer_audio_data->audio_output_stream->PushSamples()
+                                                peer_audio_data->audio_output_stream->PushSamples(
+                                                        std::vector<std::int16_t>(
+                                                                &event.packet->data[1],
+                                                                &event.packet->data[1] + event.packet->dataLength-1
+                                                        )
+                                                );
 
                                         break;
 
