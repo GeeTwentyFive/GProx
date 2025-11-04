@@ -216,10 +216,11 @@ void Listen(ENetHost* local_client) {
                                                         peer_data->pos.z
                                                 });
 
+                                                // Play received audio
                                                 peer_audio_data->audio_output_stream->PushSamples(
                                                         std::vector<std::int16_t>(
                                                                 &event.packet->data[1],
-                                                                &event.packet->data[1] + event.packet->dataLength-1
+                                                                &event.packet->data[1] + (event.packet->dataLength-1 - sizeof(struct in6_addr))
                                                         )
                                                 );
 
