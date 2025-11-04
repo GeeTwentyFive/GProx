@@ -8,6 +8,8 @@
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
 
+#include <SFML/Audio.hpp>
+
 #include "libs/InputMonitor.h"
 #include "libs/AudioInputMonitor.h"
 
