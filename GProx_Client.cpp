@@ -133,9 +133,16 @@ void IPC_Server(enet_uint16 port) {
         while (true) {
                 while (enet_host_service(server, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                if (event.packet->dataLength != sizeof(PeerData)) {
-                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << sizeof(PeerData) << std::endl;
+                                if (event.packet->dataLength != (sizeof(PeerData) - sizeof(struct in6_addr))) {
+                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << (sizeof(PeerData) - sizeof(struct in6_addr)) << std::endl;
                                 }
+
+                                PeerData* local_peer_data = (PeerData*)event.packet->data;
+                                sf::Listener::setPosition(sf::Vector3f{
+                                        local_peer_data->pos.x,
+                                        local_peer_data->pos.y,
+                                        local_peer_data->pos.z
+                                });
 
                                 unsigned char* local_peer_data_packet_data = (unsigned char*)malloc(1 + sizeof(PeerData));
                                 local_peer_data_packet_data[0] = PACKET_TYPE_PEER_DATA;
