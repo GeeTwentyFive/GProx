@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <deque>
 
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
@@ -34,14 +35,41 @@ public:
                 initialize(1, 48000, {sf::SoundChannel::Mono});
         }
 
-        void start() { play(); }
+        void Start() { play(); }
+
+        void SetPosition(sf::Vector3f pos) {
+                setPosition(pos);
+        }
+
+        void PushSamples(const std::vector<std::int16_t>& samples) {
+                samples_mutex.lock();
+                samples_queue.push_back(samples);
+                samples_mutex.unlock();
+        }
 
 private:
         bool onGetData(Chunk& data) override {
-                return true; // TODO
+                samples_mutex.lock();
+
+                if (samples_queue.empty()) return false;
+
+                current_samples = std::move(samples_queue.front());
+                samples_queue.pop_front();
+
+                data.samples = current_samples.data();
+                data.sampleCount = current_samples.size();
+
+                samples_mutex.unlock();
+                return true;
         }
 
         void onSeek(sf::Time timeOffset) override {}
+
+
+private:
+        std::deque<std::vector<std::int16_t>> samples_queue;
+        std::vector<std::int16_t> current_samples;
+        std::mutex samples_mutex;
 };
 typedef struct {
         AudioOutputStream* audio_output_stream;
@@ -136,6 +164,7 @@ void IPC_Server(enet_uint16 port) {
 void Listen(ENetHost* local_client) {
         ENetEvent event;
         PeerData* peer_data = NULL;
+        RemotePeerAudioData* peer_audio_data = NULL;
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
@@ -150,7 +179,21 @@ void Listen(ENetHost* local_client) {
                                                 }
                                                 if (peer_data == NULL) break;
 
-                                                // TODO: Get AudioOutputStream -> set 3D position -> write audio data
+                                                peer_audio_data = NULL;
+                                                for (RemotePeerAudioData& a : remote_peer_audio_data) {
+                                                        if (in6_equal(a.ip, *(struct in6_addr*)&event.packet->data[event.packet->dataLength - sizeof(struct in6_addr)])) {
+                                                                peer_audio_data = &a;
+                                                        }
+                                                }
+                                                if (peer_audio_data == NULL) break;
+
+                                                peer_audio_data->audio_output_stream->SetPosition(sf::Vector3f{
+                                                        peer_data->pos.x,
+                                                        peer_data->pos.y,
+                                                        peer_data->pos.z
+                                                });
+
+                                                // TODO: peer_audio_data->audio_output_stream->PushSamples()
 
                                         break;
 
@@ -178,7 +221,7 @@ void Listen(ENetHost* local_client) {
                                                         remote_peer_data.push_back(p);
 
                                                         AudioOutputStream* remote_peer_audio_output_stream = new AudioOutputStream;
-                                                        remote_peer_audio_output_stream->start();
+                                                        remote_peer_audio_output_stream->Start();
                                                         remote_peer_audio_data.push_back(RemotePeerAudioData{
                                                                 .audio_output_stream = remote_peer_audio_output_stream,
                                                                 .ip = p.ip
