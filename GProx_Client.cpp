@@ -28,6 +28,26 @@ typedef struct {
         struct in6_addr ip;
 } PeerData;
 
+class AudioOutputStream : sf::SoundStream {
+public:
+        AudioOutputStream() {
+                initialize(1, 48000, {sf::SoundChannel::Mono});
+        }
+
+        void start() { play(); }
+
+private:
+        bool onGetData(Chunk& data) override {
+                return true; // TODO
+        }
+
+        void onSeek(sf::Time timeOffset) override {}
+};
+typedef struct {
+        AudioOutputStream* audio_output_stream;
+        struct in6_addr ip;
+} RemotePeerAudioData;
+
 typedef enum {
         PACKET_TYPE_AUDIO_DATA = 0,
         PACKET_TYPE_PEER_DATA = 1
@@ -37,6 +57,8 @@ typedef enum {
 ENetPeer* gprox_server;
 std::mutex gprox_server_mutex;
 std::vector<PeerData> remote_peer_data;
+std::vector<RemotePeerAudioData> remote_peer_audio_data;
+std::mutex remote_peer_data_mutex;
 
 int bRecord = 0;
 
@@ -117,6 +139,7 @@ void Listen(ENetHost* local_client) {
         while (true) {
                 while (enet_host_service(local_client, &event, 1) > 0) {
                         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                                remote_peer_data_mutex.lock();
                                 switch (event.packet->data[0]) {
                                         case PACKET_TYPE_AUDIO_DATA:
                                                 peer_data = NULL;
@@ -127,7 +150,7 @@ void Listen(ENetHost* local_client) {
                                                 }
                                                 if (peer_data == NULL) break;
 
-                                                // TODO: Play based on position in peer_data
+                                                // TODO: Get AudioOutputStream -> set 3D position -> write audio data
 
                                         break;
 
@@ -153,9 +176,17 @@ void Listen(ENetHost* local_client) {
                                                                 sizeof(PeerData)
                                                         );
                                                         remote_peer_data.push_back(p);
+
+                                                        AudioOutputStream* remote_peer_audio_output_stream = new AudioOutputStream;
+                                                        remote_peer_audio_output_stream->start();
+                                                        remote_peer_audio_data.push_back(RemotePeerAudioData{
+                                                                .audio_output_stream = remote_peer_audio_output_stream,
+                                                                .ip = p.ip
+                                                        });
                                                 }
                                         break;
                                 }
+                                remote_peer_data_mutex.unlock();
 
                                 enet_packet_destroy(event.packet);
                         }
