@@ -3,4 +3,4 @@ GProx is a general-purpose cross-platform proximity voice chat client and server
 # Usage
 1) One of the users starts server via `GProx_Server <PORT>`
 2) All users connect to the server via `GProx_Client <PORT> <SERVER_IPv6_ADDRESS`
-3) User sends their 3D position data via ENet to `localhost:<PORT+1>`, format: `f32 x, f32 y, f32 z f32 pitch f32 yaw f32 roll`
+3) User sends their 3D position data via ENet to `localhost:<PORT+1>`, format: `f32 x, f32 y, f32 z, f32 pitch, f32 yaw, f32 roll`
