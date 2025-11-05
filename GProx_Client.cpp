@@ -25,6 +25,20 @@ typedef struct {
                 float z;
         } pos;
 
+        struct {
+                float pitch;
+                float yaw;
+                float roll;
+        } rot;
+
+        struct {
+                float x;
+                float y;
+                float z;
+        } vel;
+
+        float volume;
+
 // Managed by server:
         struct in6_addr ip;
 } PeerData;
@@ -41,6 +55,14 @@ typedef struct {
                 float yaw;
                 float roll;
         } rot;
+
+        struct {
+                float x;
+                float y;
+                float z;
+        } vel;
+
+        float volume;
 } LocalPeerData;
 
 class AudioOutputStream : sf::SoundStream {
@@ -53,6 +75,18 @@ public:
 
         void SetPosition(sf::Vector3f pos) {
                 setPosition(pos);
+        }
+
+        void SetDirection(sf::Vector3f dir) {
+                setDirection(dir);
+        }
+
+        void SetVelocity(sf::Vector3f vel) {
+                setVelocity(vel);
+        }
+
+        void SetVolume(float volume) {
+                setVolume(volume);
         }
 
         void PushSamples(const std::vector<std::int16_t>& samples) {
@@ -159,6 +193,12 @@ void IPC_Server(enet_uint16 port) {
                                         local_peer_data->rot.yaw,
                                         local_peer_data->rot.roll
                                 });
+                                sf::Listener::setVelocity(sf::Vector3f{
+                                        local_peer_data->vel.x,
+                                        local_peer_data->vel.y,
+                                        local_peer_data->vel.z
+                                });
+                                sf::Listener::setGlobalVolume(local_peer_data->volume);
 
                                 unsigned char* local_peer_data_packet_data = (unsigned char*)malloc(1 + sizeof(PeerData));
                                 local_peer_data_packet_data[0] = PACKET_TYPE_PEER_DATA;
@@ -215,6 +255,17 @@ void Listen(ENetHost* local_client) {
                                                         peer_data->pos.y,
                                                         peer_data->pos.z
                                                 });
+                                                peer_audio_data->audio_output_stream->SetDirection(sf::Vector3f{
+                                                        peer_data->rot.pitch,
+                                                        peer_data->rot.yaw,
+                                                        peer_data->rot.roll
+                                                });
+                                                peer_audio_data->audio_output_stream->SetVelocity(sf::Vector3f{
+                                                        peer_data->vel.x,
+                                                        peer_data->vel.y,
+                                                        peer_data->vel.z
+                                                });
+                                                peer_audio_data->audio_output_stream->SetVolume(peer_data->volume);
 
                                                 // Play received audio
                                                 peer_audio_data->audio_output_stream->PushSamples(
@@ -226,7 +277,7 @@ void Listen(ENetHost* local_client) {
 
                                         break;
 
-                                        case PACKET_TYPE_PEER_DATA: // Sync remote player positions
+                                        case PACKET_TYPE_PEER_DATA: // Sync remote player data
                                                 bool existing_peer_found = false;
                                                 for (PeerData& p : remote_peer_data) {
                                                         if (in6_equal(p.ip, ((PeerData*)&event.packet->data[1])->ip)) {
