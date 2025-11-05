@@ -266,14 +266,20 @@ void Listen(ENetHost* local_client) {
 }
 
 int main(int argc, char* argv[]) {
-        if (argc < 3) {
-                std::cout << "USAGE: GProx_Client <PORT> <SERVER_IPv6_ADDRESS>" << std::endl;
+        if (argc < 4) {
+                std::cout << "USAGE: GProx_Client <LOCAL_IPC_PORT> <SERVER_PORT> <SERVER_IPv6_ADDRESS>" << std::endl;
                 return 1;
         }
 
-        int port = atoi(argv[1]);
-        if (port == 0) {
-                std::cout << "ERROR: Provided port " << argv[1] << " is invalid" << std::endl;
+        int local_ipc_port = atoi(argv[1]);
+        if (local_ipc_port == 0) {
+                std::cout << "ERROR: Provided local IPC port " << argv[1] << " is invalid" << std::endl;
+                return 1;
+        }
+
+        int server_port = atoi(argv[2]);
+        if (server_port == 0) {
+                std::cout << "ERROR: Provided server port " << argv[2] << " is invalid" << std::endl;
                 return 1;
         }
 
@@ -292,8 +298,8 @@ int main(int argc, char* argv[]) {
         }
 
         ENetAddress address;
-        enet_address_set_host_new(&address, argv[2]);
-        address.port = port;
+        enet_address_set_host_new(&address, argv[3]);
+        address.port = server_port;
         gprox_server = enet_host_connect(client, &address, 1, 0);
         if (gprox_server == NULL) {
                 std::cout << "ERROR: enet_host_connect() failed" << std::endl;
@@ -316,7 +322,7 @@ int main(int argc, char* argv[]) {
         std::thread(Listen, client).detach();
 
         // Start IPC (Inter-Process Communication) Server
-        std::thread(IPC_Server, port+1).detach();
+        std::thread(IPC_Server, local_ipc_port).detach();
 
 
         // Bind V to push-to-talk
