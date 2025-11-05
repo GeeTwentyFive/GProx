@@ -26,9 +26,9 @@ typedef struct {
         } pos;
 
         struct {
-                float pitch;
-                float yaw;
-                float roll;
+                float x;
+                float y;
+                float z;
         } rot;
 
         struct {
@@ -51,9 +51,9 @@ typedef struct {
         } pos;
 
         struct {
-                float pitch;
-                float yaw;
-                float roll;
+                float x;
+                float y;
+                float z;
         } rot;
 
         struct {
@@ -189,9 +189,9 @@ void IPC_Server(enet_uint16 port) {
                                         local_peer_data->pos.z
                                 });
                                 sf::Listener::setDirection(sf::Vector3f{
-                                        local_peer_data->rot.pitch,
-                                        local_peer_data->rot.yaw,
-                                        local_peer_data->rot.roll
+                                        local_peer_data->rot.x,
+                                        local_peer_data->rot.y,
+                                        local_peer_data->rot.z
                                 });
                                 sf::Listener::setVelocity(sf::Vector3f{
                                         local_peer_data->vel.x,
@@ -256,9 +256,9 @@ void Listen(ENetHost* local_client) {
                                                         peer_data->pos.z
                                                 });
                                                 peer_audio_data->audio_output_stream->SetDirection(sf::Vector3f{
-                                                        peer_data->rot.pitch,
-                                                        peer_data->rot.yaw,
-                                                        peer_data->rot.roll
+                                                        peer_data->rot.x,
+                                                        peer_data->rot.y,
+                                                        peer_data->rot.z
                                                 });
                                                 peer_audio_data->audio_output_stream->SetVelocity(sf::Vector3f{
                                                         peer_data->vel.x,
