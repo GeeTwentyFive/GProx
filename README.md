@@ -6,6 +6,8 @@ GProx is a general-purpose cross-platform proximity voice chat client and server
 3) Local user sends their local player data via TCP (in Least Significant Bit order) to `localhost:<LOCAL_IPC_PORT>`, format:
 ```
 typedef struct {
+        int struct_size = sizeof(PeerData); // 4 bytes (value should be `44`)
+
         struct {
                 float x; // 4 bytes
                 float y; // 4 bytes
@@ -27,4 +29,4 @@ typedef struct {
         float volume; // 4 bytes
 } PeerData;
 ```
-^ total size: 40 bytes
+^ total size: 44 bytes
