@@ -29,7 +29,7 @@ typedef struct {
 
         float volume;
 
-// Managed by server:
+// Managed by this server:
         struct in6_addr ip;
 } PeerData;
 

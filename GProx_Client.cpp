@@ -137,12 +137,13 @@ void IPC_Server(enet_uint16 port) {
         LocalIPC::Server server(port);
         while (true) {
                 std::vector<uint8_t> data = server.Recv();
-                if (data.size() != sizeof(PeerData)) {
+                if (data.size() != sizeof(PeerData)-sizeof(struct in6_addr)) {
                         std::cout << "ERROR: Received local IPC data of size " << data.size()
-                        << ", expected: " << sizeof(PeerData);
+                        << ", expected: " << sizeof(PeerData)-sizeof(struct in6_addr);
 
                         return;
                 }
+                data.resize(sizeof(PeerData));
 
                 PeerData* local_peer_data = (PeerData*) data.data();
                 sf::Listener::setPosition(sf::Vector3f{
