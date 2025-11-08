@@ -15,6 +15,20 @@ typedef struct {
                 float z;
         } pos;
 
+        struct {
+                float x;
+                float y;
+                float z;
+        } rot;
+
+        struct {
+                float x;
+                float y;
+                float z;
+        } vel;
+
+        float volume;
+
 // Managed by server:
         struct in6_addr ip;
 } PeerData;

@@ -8,9 +8,8 @@
 
 #define ENET_IMPLEMENTATION
 #include "libs/enet.h"
-
+#include "libs/LocalIPC.hpp"
 #include <SFML/Audio.hpp>
-
 #include "libs/InputMonitor.h"
 #include "libs/AudioInputMonitor.h"
 
@@ -42,28 +41,6 @@ typedef struct {
 // Managed by server:
         struct in6_addr ip;
 } PeerData;
-
-typedef struct {
-        struct {
-                float x;
-                float y;
-                float z;
-        } pos;
-
-        struct {
-                float x;
-                float y;
-                float z;
-        } rot;
-
-        struct {
-                float x;
-                float y;
-                float z;
-        } vel;
-
-        float volume;
-} LocalPeerData;
 
 class AudioOutputStream : sf::SoundStream {
 public:
@@ -157,70 +134,53 @@ void AudioInputData_Callback(const void* pData, ma_uint32 frameCount) {
 }
 
 void IPC_Server(enet_uint16 port) {
-        ENetAddress address;
-        address.host = ENET_HOST_ANY;
-        address.port = port;
-        ENetHost* server = enet_host_create(
-                &address,
-                1,
-                1,
-                0,
-                0
-        );
-        if (server == NULL) {
-                std::cout << "ERROR: Failed to start IPC server" << std::endl;
-                exit(1);
-        }
-
-        std::cout << "Started IPC server on port " << port << std::endl;
-
-        ENetEvent event;
+        LocalIPC::Server server(port);
         while (true) {
-                while (enet_host_service(server, &event, 1) > 0) {
-                        if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                                if (event.packet->dataLength != sizeof(LocalPeerData)) {
-                                        std::cout << "IPC ERROR: Input data size " << event.packet->dataLength << " does not match target " << sizeof(LocalPeerData) << std::endl;
-                                }
+                std::vector<uint8_t> data = server.Recv();
+                if (data.size() != sizeof(PeerData)) {
+                        std::cout << "ERROR: Received local IPC data of size " << data.size()
+                        << ", expected: " << sizeof(PeerData);
 
-                                LocalPeerData* local_peer_data = (LocalPeerData*)event.packet->data;
-                                sf::Listener::setPosition(sf::Vector3f{
-                                        local_peer_data->pos.x,
-                                        local_peer_data->pos.y,
-                                        local_peer_data->pos.z
-                                });
-                                sf::Listener::setDirection(sf::Vector3f{
-                                        local_peer_data->rot.x,
-                                        local_peer_data->rot.y,
-                                        local_peer_data->rot.z
-                                });
-                                sf::Listener::setVelocity(sf::Vector3f{
-                                        local_peer_data->vel.x,
-                                        local_peer_data->vel.y,
-                                        local_peer_data->vel.z
-                                });
-                                sf::Listener::setGlobalVolume(local_peer_data->volume);
-
-                                unsigned char* local_peer_data_packet_data = (unsigned char*)malloc(1 + sizeof(PeerData));
-                                local_peer_data_packet_data[0] = PACKET_TYPE_PEER_DATA;
-                                memcpy(
-                                        &local_peer_data_packet_data[1],
-                                        event.packet->data,
-                                        sizeof(PeerData)
-                                );
-                                gprox_server_mutex.lock();
-                                enet_peer_send(
-                                        gprox_server,
-                                        0,
-                                        enet_packet_create(
-                                                local_peer_data_packet_data,
-                                                1 + sizeof(PeerData),
-                                                event.packet->flags
-                                        )
-                                );
-                                gprox_server_mutex.unlock();
-                                free(local_peer_data_packet_data);
-                        }
+                        return;
                 }
+
+                PeerData* local_peer_data = (PeerData*) data.data();
+                sf::Listener::setPosition(sf::Vector3f{
+                        local_peer_data->pos.x,
+                        local_peer_data->pos.y,
+                        local_peer_data->pos.z
+                });
+                sf::Listener::setDirection(sf::Vector3f{
+                        local_peer_data->rot.x,
+                        local_peer_data->rot.y,
+                        local_peer_data->rot.z
+                });
+                sf::Listener::setVelocity(sf::Vector3f{
+                        local_peer_data->vel.x,
+                        local_peer_data->vel.y,
+                        local_peer_data->vel.z
+                });
+                sf::Listener::setGlobalVolume(local_peer_data->volume);
+
+                unsigned char* local_peer_data_packet_data = (unsigned char*)malloc(1 + sizeof(PeerData));
+                local_peer_data_packet_data[0] = PACKET_TYPE_PEER_DATA;
+                memcpy(
+                        &local_peer_data_packet_data[1],
+                        local_peer_data,
+                        sizeof(PeerData)
+                );
+                gprox_server_mutex.lock();
+                enet_peer_send(
+                        gprox_server,
+                        0,
+                        enet_packet_create(
+                                local_peer_data_packet_data,
+                                1 + sizeof(PeerData),
+                                ENET_PACKET_FLAG_RELIABLE
+                        )
+                );
+                gprox_server_mutex.unlock();
+                free(local_peer_data_packet_data);
         }
 }
 
